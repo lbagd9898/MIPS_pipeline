@@ -290,10 +290,26 @@ int main()
                 new_state.WB.nop = 0;
             }
         }
-
-
         /* --------------------- EX stage --------------------- */
-     
+        if (!state.EX.nop) {
+            //calculate lw/sw address
+            if (state.EX.is_I_type) {
+                bool bit_15 = state.EX.Imm[15];
+                bitset<16> extension;
+                if (bit_15) extension.set(); else extension = 0;
+                bitset<32>sign_ext_imm((extension.to_ulong() << 16) | (state.EX.Imm.to_ulong())); 
+                new_state.MEM.ALUresult = bitset<32>(state.EX.Read_data1.to_ulong() + sign_ext_imm.to_ulong());
+               
+            } else if{
+
+            }
+             new_state.MEM.Wrt_reg_addr = state.EX.Wrt_reg_addr;
+                new_state.MEM.Rs = state.EX.Rs;
+                new_state.MEM.Rt = state.EX.Rt;
+                new_state.MEM.rd_mem = state.EX.rd_mem;
+                new_state.MEM.wrt_mem = state.EX.wrt_mem;
+                
+        }
           
 
         /* --------------------- ID stage --------------------- */
