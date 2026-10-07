@@ -313,16 +313,33 @@ int main()
           
 
         /* --------------------- ID stage --------------------- */
-
-
+        bool stall = false;
+        if (!state.ID.nop) {
+            }
+            else {
+            new_state.EX.nop = 1;
+            }
+        }
         
         /* --------------------- IF stage --------------------- */
-
-
              
-        if (state.IF.nop && state.ID.nop && state.EX.nop && state.MEM.nop && state.WB.nop)
-            break;
-        
+        if (state.IF.nop && state.ID.nop && state.EX.nop && state.MEM.nop && state.WB.nop) {
+            bitset<32> instr = myInsMem.readInstr(state.IF.PC);
+            if (instr == bitset<32>(0xFFFFFFFF)) {     // halt
+                new_state.ID.nop = 1;
+                new_state.IF.nop = 1;
+                new_state.IF.PC  = state.IF.PC;
+            } else {
+                new_state.ID.Instr = instr;
+                new_state.ID.nop   = 0;
+                new_state.IF.PC    = bitset<32>(state.IF.PC.to_ulong() + 4);
+                new_state.IF.nop   = 0;
+            }
+        } else if (state.IF.nop) {
+            new_state.ID.nop = 1;
+            new_state.IF.nop = 1;
+        }
+    
         printState(newState, cycle); //print states after executing cycle 0, cycle 1, cycle 2 ... 
        
         state = newState; /*** The end of the cycle and updates the current state with the values calculated in this cycle. csa23 ***/ 
