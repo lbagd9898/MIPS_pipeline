@@ -299,22 +299,29 @@ int main()
                 if (bit_15) extension.set(); else extension = 0;
                 bitset<32>sign_ext_imm((extension.to_ulong() << 16) | (state.EX.Imm.to_ulong())); 
                 new_state.MEM.ALUresult = bitset<32>(state.EX.Read_data1.to_ulong() + sign_ext_imm.to_ulong());
-               
-            } else if{
+                new_state.MEM.Store_data = state.EX.Read_data2;
+                //register operations
+            } else {
+                if (state.EX.alu_op == 1) {
+                    new_state.MEM.ALUresult = bitset<32>(state.EX.Read_data1.to_ulong() + state.EX.Read_data2.to_ulong());
+                } else if (state.EX.alu_op == 0) {
+                    new_state.MEM.ALUresult = bitset<32>(state.EX.Read_data1.to_ulong() - state.EX.Read_data2.to_ulong());
+                }
+                new_state.MEM.nop = 1;
 
             }
-             new_state.MEM.Wrt_reg_addr = state.EX.Wrt_reg_addr;
-                new_state.MEM.Rs = state.EX.Rs;
-                new_state.MEM.Rt = state.EX.Rt;
-                new_state.MEM.rd_mem = state.EX.rd_mem;
-                new_state.MEM.wrt_mem = state.EX.wrt_mem;
-                
+            //pass the rest of the data forward
+            new_state.MEM.Wrt_reg_addr = state.EX.Wrt_reg_addr;
+            new_state.MEM.Rs = state.EX.Rs;
+            new_state.MEM.Rt = state.EX.Rt;
+            new_state.MEM.rd_mem = state.EX.rd_mem;
+            new_state.MEM.wrt_mem = state.EX.wrt_mem; 
+            new_state.MEM.wrt_enable = state.EX.wrt_enable;       
         }
           
 
         /* --------------------- ID stage --------------------- */
-
-
+        
         
         /* --------------------- IF stage --------------------- */
 
@@ -323,9 +330,9 @@ int main()
         if (state.IF.nop && state.ID.nop && state.EX.nop && state.MEM.nop && state.WB.nop)
             break;
         
-        printState(newState, cycle); //print states after executing cycle 0, cycle 1, cycle 2 ... 
+        printState(new_state, cycle); //print states after executing cycle 0, cycle 1, cycle 2 ... 
        
-        state = newState; /*** The end of the cycle and updates the current state with the values calculated in this cycle. csa23 ***/ 
+        state = new_state; /*** The end of the cycle and updates the current state with the values calculated in this cycle. csa23 ***/ 
         
         myRF.outputRF(cycle); // dump RF;
 
