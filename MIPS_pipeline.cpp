@@ -265,6 +265,10 @@ int main()
     printState(state, cycle);
              
     while (1) {
+
+        //initializes branching logic
+        bool branch = false;
+        bitset<32> branch_address;
         /* --------------------- WB stage --------------------- */
         //write back to register provided wrt_enable and register addr isn't 0
         if (!state.WB.nop && state.WB.wrt_enable && state.WB.Wrt_reg_addr != 0) {
@@ -319,16 +323,97 @@ int main()
             new_state.MEM.wrt_enable = state.EX.wrt_enable;       
         }
           
-
+        bool stall = false;
         /* --------------------- ID stage --------------------- */
-        
+        if (!state.ID.nop) {
+            unsigned long int_ins = state.ID.Instr.to_ulong();
+            bitset<6> opcode(int_ins >> 26);
+            //j-type
+            if (opcode == 0x3F) {
+                break;
+            } else {
+                //declare rs and rt
+                new_state.EX.Rs = bitset<5>((int_ins >>21) & 0x1F);
+                new_state.EX.Rt = bitset<5>((int_ins >> 16) & 0x1F);
+                // for r and i type we read rs
+                new_state.EX.Read_data1 = myRF.readRF(new_state.EX.Rs);
+                new_state.EX.Read_data2 = myRF.readRF(new_state.EX.Rt);
+                //r-type
+                if (opcode  == 0) {
+                    //read data from registers
+                    new_state.EX.Wrt_reg_addr = bitset<5>((int_ins >> 11) & 0x1F);
+                    bitset<6> funct(int_ins & 0x3F); 
+                    if (funct == 0x21) {
+                        new_state.EX.alu_op = 1;
+                    } else if (funct == 0x23) {
+                        new_state.EX.alu_op == 0;
+                    }
+                    new_state.EX.rd_mem = 0;
+                    new_state.EX.wrt_mem = 0;
+                    new_state.EX.wrt_enable = 1;
+                    //I-type
+                } else {
+                    new_state.EX.is_I_type = 1;
+                    new_state.EX.Imm = bitset<16>(int_ins & 0xFFFF);
+                    //lw
+                    if (opcode == 0x23) {
+                        new_state.EX.wrt_enable = 1;
+                        new_state.EX.rd_mem = 1;
+                        new_state.EX.wrt_mem = 0;
+                        //sw
+                    } else if (opcode == 0x2B) {
+                        new_state.EX.wrt_enable = 0;
+                        new_state.EX.rd_mem = 0;
+                        new_state.EX.wrt_mem = 1;
+                        //bne
+                    } else if (opcode == 0x05) {
+                        new_state.EX.nop = 1;
+                        //new address
+                        if (new_state.EX.Read_data1 != new_state.EX.Read_data2) {
+                            bool bit_15 = new_state.EX.Imm[15];
+                            bitset<16> extension;
+                            if (bit_15) extension.set(); else extension = 0;
+                            bitset<32>sign_ext_imm((extension.to_ulong() << 18) | (new_state.EX.Imm.to_ulong() << 2)); 
+                            branch = true;
+                            branch_address = bitset<32>(state.IF.PC.to_ulong() + 4 + sign_ext_imm.to_ulong());
+                        }
+                    }
+
+                }
+            }
+        }
+            else {
+            new_state.EX.nop = 1;
+            }
         
         /* --------------------- IF stage --------------------- */
-
+        if (!state.IF.nop) {
+            bitset<32> instr = myInsMem.readInstr(state.IF.PC);
+            if (instr == bitset<32>(0xFFFFFFFF)) {     // halt
+                new_state.ID.nop = 1;
+                new_state.IF.nop = 1;
+                new_state.IF.PC  = state.IF.PC;
+            } else if (branch) {
+                new_state.IF.PC = branch_address;
+                new_state.IF.nop = 0;
+                new_state.ID.Instr = instr;
+                new_state.ID.nop   = 0;
+                } else {
+                new_state.ID.Instr = instr;
+                new_state.ID.nop   = 0;
+                new_state.IF.PC    = bitset<32>(state.IF.PC.to_ulong() + 4);
+                new_state.IF.nop   = 0;
+            }
+        } else if (state.IF.nop) {
+            new_state.ID.nop = 1;
+            new_state.IF.nop = 1;
+        }
 
              
-        if (state.IF.nop && state.ID.nop && state.EX.nop && state.MEM.nop && state.WB.nop)
+        if (state.IF.nop && state.ID.nop && state.EX.nop && state.MEM.nop && state.WB.nop) {
             break;
+        }
+            
         
         printState(new_state, cycle); //print states after executing cycle 0, cycle 1, cycle 2 ... 
        
