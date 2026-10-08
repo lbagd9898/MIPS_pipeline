@@ -301,6 +301,12 @@ int main()
         }
         /* --------------------- EX stage --------------------- */
         if (!state.EX.nop) {
+            ///FORWARDING LOGIC
+            //check for RAW in rs and forward
+            if (state.EX.Rs == state.MEM.Wrt_reg_addr) {
+                state.EX.Read_data1 = state.MEM.ALUresult; 
+            }
+            
             //calculate lw/sw address
             if (state.EX.is_I_type) {
                 bool bit_15 = state.EX.Imm[15];
